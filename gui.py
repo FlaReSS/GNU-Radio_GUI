@@ -1,3 +1,9 @@
+import time
+import struct
+import zmq
+import threading
+
+
 import sys
 import socket
 from PyQt4.QtCore import *
@@ -10,6 +16,9 @@ global varList
 varList = []
 global mainflag
 mainflag = False
+
+
+global logfilename
 
 def opencfg():
 	try:
@@ -28,7 +37,7 @@ def opencfg():
 			msg.setWindowTitle("Error!")
 			retval = msg.exec_()
 			exit()
-	except:
+	except IOError:
 		pass
 
 def savecfg():
@@ -127,11 +136,55 @@ fileWidget.setLayout(fileGrid)
 openLogBtn = QPushButton()
 openLogBtn.setText("Open")
 
+startstopLogBtn = QPushButton()
+startstopLogBtn.setText("Start")
+startstopLogBtn.setEnabled(False)
+
+def logging():
+	global mainflag
+	while True:
+		if mainflag:
+			global updates
+			global logfilename
+			file = open(logfilename, 'a+')
+			msg = updates.recv()
+			msg2 = bytearray(msg)
+			cfg = str(len(msg)/4) + 'f'
+			tmp = struct.unpack(cfg, msg2)
+			file.write(str(tmp) + '\n')
+			file.close()
+
+msgthread = threading.Thread(target=logging)
+msgthread.daemon = True
+msgthread.start()
+
 def olb_clicked():
-	name = QFileDialog.getSaveFileName()
-	openLogLE.setText(name)
+	global logfilename
+	logfilename = QFileDialog.getSaveFileName()
+	openLogLE.setText(logfilename)
+	if logfilename:
+		startstopLogBtn.setEnabled(True)
+		ctx = zmq.Context()
+		global updates
+		updates = ctx.socket(zmq.SUB)
+		updates.linger = 0
+		updates.setsockopt(zmq.SUBSCRIBE, '')
+		updates.connect("tcp://localhost:5556")
+	else:
+		startstopLogBtn.setEnabled(False)
+
+def sslb_clicked():
+	global mainflag
+	if mainflag == False:
+		mainflag = True
+		startstopLogBtn.setText('Stop')
+		
+	else:
+		mainflag = False
+		startstopLogBtn.setText('Start')
 
 openLogBtn.clicked.connect(olb_clicked)
+startstopLogBtn.clicked.connect(sslb_clicked)
 
 openLogLE = QLineEdit()
 openLogLE.setPlaceholderText("Log filename (output)")
@@ -140,6 +193,7 @@ openLogLE.setFocusPolicy(0)
 
 fileGrid.addWidget(openLogLE, 0, 0, 1, 4)
 fileGrid.addWidget(openLogBtn, 0, 5, 1, 1)
+fileGrid.addWidget(startstopLogBtn, 0, 6, 1, 1)
 
 openInBtn = QPushButton()
 openInBtn.setText("Open")
@@ -219,7 +273,6 @@ addGrid.addWidget(addBtn, 0, 3, 1, 1)
 
 varWidget = QWidget()
 varGrid = QGridLayout()
-# varGrid.addLayout(varGrid, 2,2)
 varWidget.setLayout(varGrid)
 
 
