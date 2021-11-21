@@ -6,11 +6,12 @@ import threading
 
 import sys
 import socket
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-import xmlrpclib
+from PyQt5.QtCore import *
+from PyQt5 import *
+from PyQt5.QtWidgets import QApplication, QGridLayout, QPushButton, QLineEdit, QComboBox, QWidget
+import xmlrpc.client
 global xmlrpc_client_0
-xmlrpc_client_0 = xmlrpclib.ServerProxy('http://localhost:8080')
+xmlrpc_client_0 = xmlrpc.client.ServerProxy('http://localhost:8080')
 
 global varList
 varList = []
