@@ -130,7 +130,7 @@ mainWindow = QWidget()
 mainGrid = QGridLayout()
 mainWindow.setLayout(mainGrid)
 mainWindow.setGeometry(100,100,800,600)
-mainWindow.setWindowTitle("GUI test")
+mainWindow.setWindowTitle("OBC Emulator")
 
 
 fileWidget = QWidget()

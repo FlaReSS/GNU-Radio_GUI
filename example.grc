@@ -125,9 +125,9 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [504, 412.0]
+    coordinate: [472, 340.0]
     rotation: 0
-    state: disabled
+    state: enabled
 - name: qtgui_time_sink_x_0
   id: qtgui_time_sink_x
   parameters:
@@ -373,7 +373,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [176, 328.0]
+    coordinate: [192, 328.0]
     rotation: 0
     state: true
 
@@ -382,7 +382,7 @@ connections:
 - [blocks_throttle_0, '0', qtgui_time_sink_x_0, '0']
 - [blocks_throttle_0, '0', zeromq_pub_sink_0, '0']
 - [blocks_throttle_0_0, '0', qtgui_time_sink_x_0_0, '0']
-- [zeromq_pull_source_0, '0', qtgui_time_sink_x_0_0, '0']
+- [zeromq_pull_source_0, '0', blocks_throttle_0_0, '0']
 
 metadata:
   file_format: 1
