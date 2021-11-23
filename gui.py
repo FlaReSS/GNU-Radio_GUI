@@ -7,19 +7,22 @@ import threading
 import sys
 import socket
 from PyQt5.QtCore import *
-from PyQt5 import *
-from PyQt5.QtWidgets import QApplication, QGridLayout, QPushButton, QLineEdit, QComboBox, QWidget
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 import xmlrpc.client
 global xmlrpc_client_0
+# connect to the XML RPC server (for control)
 xmlrpc_client_0 = xmlrpc.client.ServerProxy('http://localhost:8080')
 
 global varList
 varList = []
 global mainflag
 mainflag = False
-
+global mainTXflag
+mainTXflag = False
 
 global logfilename
+global txfilename
 
 def opencfg():
 	try:
@@ -80,7 +83,7 @@ class VariableWidget(QWidget):
 		self.setter = getattr(xmlrpc_client_0, tmp)
 		try:
 			self._updateVal()
-		except xmlrpclib.Fault:
+		except xmlrpc.client.Fault:
 			msg = QMessageBox()
 			msg.setIcon(QMessageBox.Warning)
 			msg.setText("Error! Perhaps a variable with '%s' name does not exist."%self.name)
@@ -141,54 +144,63 @@ startstopLogBtn = QPushButton()
 startstopLogBtn.setText("Start")
 startstopLogBtn.setEnabled(False)
 
+startstopTXBtn = QPushButton()
+startstopTXBtn.setText("Start")
+startstopTXBtn.setEnabled(False)
+
 def logging():
 	global mainflag
-	while True:
-		if mainflag:
-			global updates
-			global logfilename
-			file = open(logfilename, 'a+')
-			msg = updates.recv()
-			msg2 = bytearray(msg)
-			cfg = str(len(msg)/4) + 'f'
-			tmp = struct.unpack(cfg, msg2)
-			file.write(str(tmp) + '\n')
-			file.close()
+	global updates
+	global logfilename
+	file = open(logfilename[0], 'wb')
+	while mainflag:
+		msg = updates.recv()
+		file.write(msg)
+	file.close()
 
-msgthread = threading.Thread(target=logging)
-msgthread.daemon = True
-msgthread.start()
-
-def olb_clicked():
+def transmitting():
+	global mainTXflag
+	global txskt
+	global txfilename
+	file = open(txfilename[0], 'rb')
+	while mainTXflag:
+		data = file.read(1000)
+		txskt.send(data)
+	file.close()
+	
+def openrx_clicked():
 	global logfilename
 	logfilename = QFileDialog.getSaveFileName()
-	openLogLE.setText(logfilename)
+	openLogLE.setText(logfilename[0])
 	if logfilename:
 		startstopLogBtn.setEnabled(True)
 		ctx = zmq.Context()
 		global updates
 		updates = ctx.socket(zmq.SUB)
 		updates.linger = 0
-		updates.setsockopt(zmq.SUBSCRIBE, '')
+		updates.setsockopt(zmq.SUBSCRIBE, b'')
+		# connect to a PUB sink
 		updates.connect("tcp://localhost:5556")
 	else:
 		startstopLogBtn.setEnabled(False)
 
-def sslb_clicked():
+def startrx_clicked():
 	global mainflag
 	if mainflag == False:
 		mainflag = True
+		msgthread = threading.Thread(target=logging)
+		msgthread.daemon = True
+		msgthread.start()
 		startstopLogBtn.setText('Stop')
-		
 	else:
 		mainflag = False
 		startstopLogBtn.setText('Start')
 
-openLogBtn.clicked.connect(olb_clicked)
-startstopLogBtn.clicked.connect(sslb_clicked)
+openLogBtn.clicked.connect(openrx_clicked)
+startstopLogBtn.clicked.connect(startrx_clicked)
 
 openLogLE = QLineEdit()
-openLogLE.setPlaceholderText("Log filename (output)")
+openLogLE.setPlaceholderText("RX filename (output)")
 openLogLE.setReadOnly(True)
 openLogLE.setFocusPolicy(0)
 
@@ -200,21 +212,43 @@ openInBtn = QPushButton()
 openInBtn.setText("Open")
 
 def oib_clicked():
-	name = QFileDialog.getSaveFileName()
-	openInLE.setText(name)
+	global txfilename
+	txfilename = QFileDialog.getOpenFileName()
+	openInLE.setText(txfilename[0])
+	if txfilename:
+		ctx = zmq.Context()
+		global txskt
+		txskt = ctx.socket(zmq.PUSH)
+		txskt.linger = 0
+		# connect to a SUB source
+		txskt.connect("tcp://localhost:5557")
+		startstopTXBtn.setEnabled(True)
+	else:
+		startstopTXBtn.setEnabled(False)
 
-
+def starttx_clicked():
+	global mainTXflag
+	if mainTXflag == False:
+		mainTXflag = True
+		msgthread = threading.Thread(target=transmitting)
+		msgthread.daemon = True
+		msgthread.start()
+		startstopTXBtn.setText('Stop')
+	else:
+		mainTXflag = False
+		startstopTXBtn.setText('Start')
+		
 openInBtn.clicked.connect(oib_clicked)
-
+startstopTXBtn.clicked.connect(starttx_clicked)
 
 openInLE = QLineEdit()
-openInLE.setPlaceholderText("Data filename (input)")
+openInLE.setPlaceholderText("TX filename (input)")
 openInLE.setReadOnly(True)
 openInLE.setFocusPolicy(0)
 
 fileGrid.addWidget(openInLE, 1, 0, 1, 4)
 fileGrid.addWidget(openInBtn, 1, 5, 1, 1)
-
+fileGrid.addWidget(startstopTXBtn, 1, 6, 1, 1)
 
 
 
